@@ -1,4 +1,4 @@
-import { Response, response } from "express";
+import { Response } from "express";
 import HttpStatusCode from "./HttpStatusCode";
 
 export const responseHelper = (res: Response, dataRes: any = undefined, messageRes: string = "") => {

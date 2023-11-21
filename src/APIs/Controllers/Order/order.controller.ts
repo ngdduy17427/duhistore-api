@@ -35,7 +35,7 @@ const mapOrderData = async (data: IOrder) => {
 };
 
 const orderController = {
-  findAll: (req: Request, res: Response) => {
+  findAll: (_: Request, res: Response) => {
     orderModel
       .findAll()
       .then(async (result: any) => {
@@ -99,7 +99,9 @@ const orderController = {
           await productController.updateProductQuantity(product.id, product.quantity, "increase", "quantityOrder");
         }
 
-        return responseHelper(res, newData, "Created!").Created();
+        const orderMapped = await mapOrderData(newData);
+
+        return responseHelper(res, orderMapped, "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -133,7 +135,9 @@ const orderController = {
               }
             }
 
-            return responseHelper(res, result, "Updated!").Success();
+            const orderMapped = await mapOrderData(result);
+
+            return responseHelper(res, orderMapped, "Updated!").Success();
           })
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();

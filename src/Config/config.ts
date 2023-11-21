@@ -1,3 +1,11 @@
+declare global {
+  namespace Express {
+    interface Request {
+      jwtDecoded: any;
+    }
+  }
+}
+
 export const config = {
   rateLimitConfig: {
     windowMs: 1 * 60 * 1000,

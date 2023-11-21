@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { mongoDBCollection } from "../../mongoDB";
+import mongoDB from "../..";
 
 export interface IOrderProduct {
   id: string;
@@ -29,7 +29,7 @@ const orderModel = {
   findAll: () => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).find().sort({ updatedAt: -1 }).toArray();
+        const collection = mongoDB.collection(config.COLLECTION).find().sort({ updatedAt: -1 }).toArray();
 
         return resolve(collection);
       } catch (error) {
@@ -40,7 +40,7 @@ const orderModel = {
   findById: (dataId: string) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
+        const collection = mongoDB.collection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
 
         return resolve(collection);
       } catch (error) {
@@ -51,7 +51,7 @@ const orderModel = {
   insert: (data: any) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).insertOne(data);
+        const collection = mongoDB.collection(config.COLLECTION).insertOne(data);
 
         return resolve(collection);
       } catch (error) {
@@ -62,10 +62,9 @@ const orderModel = {
   update: (data: any) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).updateOne(
-          { _id: new ObjectId(data._id) },
-          { $set: data }
-        );
+        const collection = mongoDB
+          .collection(config.COLLECTION)
+          .updateOne({ _id: new ObjectId(data._id) }, { $set: data });
 
         return resolve(collection);
       } catch (error) {
@@ -76,7 +75,7 @@ const orderModel = {
   delete: (dataId: string) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
+        const collection = mongoDB.collection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
 
         return resolve(collection);
       } catch (error) {

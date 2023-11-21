@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { mongoDBCollection } from "../../mongoDB";
+import mongoDB from "../..";
 
 const config = {
   COLLECTION: "users",
@@ -9,7 +9,7 @@ const userModel = {
   findAll: () => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).find().limit(10).sort({ updated: -1 }).toArray();
+        const collection = mongoDB.collection(config.COLLECTION).find().limit(10).sort({ updated: -1 }).toArray();
 
         return resolve(collection);
       } catch (error) {
@@ -20,7 +20,7 @@ const userModel = {
   findById: (dataId: string) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
+        const collection = mongoDB.collection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
 
         return resolve(collection);
       } catch (error) {
@@ -31,7 +31,7 @@ const userModel = {
   findByUsername: (dataUsername: any) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).find({ username: dataUsername }).toArray();
+        const collection = mongoDB.collection(config.COLLECTION).find({ username: dataUsername }).toArray();
 
         return resolve(collection);
       } catch (error) {
@@ -42,7 +42,7 @@ const userModel = {
   insert: (data: any) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).insertOne(data);
+        const collection = mongoDB.collection(config.COLLECTION).insertOne(data);
 
         return resolve(collection);
       } catch (error) {
@@ -53,10 +53,9 @@ const userModel = {
   update: (data: any) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).updateOne(
-          { _id: new ObjectId(data._id) },
-          { $set: data }
-        );
+        const collection = mongoDB
+          .collection(config.COLLECTION)
+          .updateOne({ _id: new ObjectId(data._id) }, { $set: data });
 
         return resolve(collection);
       } catch (error) {
@@ -67,7 +66,7 @@ const userModel = {
   delete: (dataId: string) => {
     return new Promise((resolve, reject) => {
       try {
-        const collection = mongoDBCollection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
+        const collection = mongoDB.collection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
 
         return resolve(collection);
       } catch (error) {

@@ -1,18 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import md5 from "md5";
-import moment from "moment";
 import { UserRole } from "../../../Constants/Enum";
 import userModel from "../../../Database/Model/User/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
-
-declare global {
-  namespace Express {
-    interface Request {
-      jwtDecoded: any;
-    }
-  }
-}
 
 const authController = {
   isAuth: async (req: Request, res: Response, next: NextFunction) => {
@@ -22,7 +12,7 @@ const authController = {
 
     if (tokenFromClient) {
       try {
-        const tokenDecoded: any = await jwtHelper.verifyToken(tokenFromClient, process.env.JWT_SECRET!);
+        const tokenDecoded: any = await jwtHelper.verifyToken(tokenFromClient, process.env.NODE_JWT_SECRET!);
 
         /**
          * Nếu token hợp lệ

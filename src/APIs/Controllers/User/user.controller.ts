@@ -74,7 +74,7 @@ const userController = {
         if (!userSelected) {
           const newData = {
             username: req.body.username,
-            password: md5(req.body.password + process.env.JWT_SECRET),
+            password: md5(req.body.password + process.env.NODE_JWT_SECRET),
             name: req.body.name,
             role: req.body.role,
             created: moment().valueOf(),
@@ -107,7 +107,7 @@ const userController = {
       .then((result: any) => {
         // Change user password if client request
         if (result.password !== req.body.password) {
-          result.password = md5(req.body.password + process.env.JWT_SECRET!);
+          result.password = md5(req.body.password + process.env.NODE_JWT_SECRET!);
         }
 
         result.name = req.body.name;
@@ -156,7 +156,7 @@ const userController = {
         if (!userSelected) {
           const newData = {
             username: req.body.username,
-            password: md5(req.body.password + process.env.JWT_SECRET!),
+            password: md5(req.body.password + process.env.NODE_JWT_SECRET!),
             name: req.body.name,
             created: moment().valueOf(),
             updated: moment().valueOf(),
@@ -172,8 +172,8 @@ const userController = {
                   username: result.username,
                   role: result.role,
                 },
-                process.env.JWT_SECRET!,
-                process.env.JWT_LIFETIME!
+                process.env.NODE_JWT_SECRET!,
+                process.env.NODE_JWT_LIFETIME!
               );
 
               return responseHelper(

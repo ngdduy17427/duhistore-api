@@ -37,15 +37,15 @@ const appInitController = {
         const [user]: any = result;
 
         if (!user.username) return responseHelper(res, undefined, "The username is incorrect").BadRequest();
-        if (user.password !== md5(req.body.password + process.env.JWT_SECRET!))
+        if (user.password !== md5(req.body.password + process.env.NODE_JWT_SECRET!))
           return responseHelper(res, undefined, "The password is incorrect").BadRequest();
 
         const accessToken = await jwtHelper.generateToken(
           {
             user: mapUserData(user),
           },
-          process.env.JWT_SECRET!,
-          process.env.JWT_LIFETIME!
+          process.env.NODE_JWT_SECRET!,
+          process.env.NODE_JWT_LIFETIME!
         );
         const tokenExp = Date.now() + 365;
 
@@ -69,18 +69,6 @@ const appInitController = {
         if (!result) responseHelper(res, undefined, "Logout failed!").BadRequest();
 
         return responseHelper(res, undefined, "Logout successfully!").Success();
-      })
-      .catch((error) => {
-        return responseHelper(res, undefined, error.message).InternalServerError();
-      });
-  },
-  verify: (req: Request, res: Response) => {
-    userModel
-      .findById(req.jwtDecoded.data.user.id)
-      .then((result) => {
-        if (!result) responseHelper(res, undefined, "Verify failed!").BadRequest();
-
-        return responseHelper(res, mapUserData(result), "Verify successfully!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
