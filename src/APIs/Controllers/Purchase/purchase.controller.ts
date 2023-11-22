@@ -12,12 +12,7 @@ const mapPurchaseData = async (data: IPurchase) => {
   for await (const product of data.products) {
     const productFulfilled = (await productModel.findById(product.id)) as IProduct;
 
-    productsMapped.push({
-      id: product.id,
-      name: productFulfilled?.name,
-      quantity: product.quantity,
-      totalPrice: product.totalPrice,
-    });
+    productsMapped.push({ ...product, name: productFulfilled?.name });
   }
 
   return {
@@ -31,7 +26,7 @@ const mapPurchaseData = async (data: IPurchase) => {
 };
 
 const purchaseController = {
-  findAll: (req: Request, res: Response) => {
+  findAll: (_: Request, res: Response) => {
     purchaseModel
       .findAll()
       .then(async (result: any) => {
@@ -84,7 +79,9 @@ const purchaseController = {
           await productController.updateProductQuantity(product.id, product.quantity, "increase", "quantityPurchase");
         }
 
-        return responseHelper(res, newData, "Created!").Created();
+        const purchaseMapped = await mapPurchaseData(newData);
+
+        return responseHelper(res, purchaseMapped, "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -118,7 +115,9 @@ const purchaseController = {
               }
             }
 
-            return responseHelper(res, result, "Updated!").Success();
+            const purchaseMapped = await mapPurchaseData(result);
+
+            return responseHelper(res, purchaseMapped, "Updated!").Success();
           })
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();
@@ -153,6 +152,16 @@ const purchaseController = {
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();
           });
+      })
+      .catch((error) => {
+        return responseHelper(res, undefined, error.message).InternalServerError();
+      });
+  },
+  summary: (_: Request, res: Response) => {
+    purchaseModel
+      .summary()
+      .then((result: any) => {
+        return responseHelper(res, result[0], "Summary!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();

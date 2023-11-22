@@ -1,23 +1,18 @@
 import { Request, Response } from "express";
 import moment from "moment";
 import { OrderStatus } from "../../../Constants/Enum";
-import orderModel, { IOrder } from "../../../Database/Model/Order/order.model";
+import orderModel, { IOrder, IOrderProduct } from "../../../Database/Model/Order/order.model";
 import productModel, { IProduct } from "../../../Database/Model/Product/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 import productController from "../Product/product.controller";
 
 const mapOrderData = async (data: IOrder) => {
-  const productsMapped = [];
+  const productsMapped: IOrderProduct[] = [];
 
   for await (const product of data.products) {
     const productFulfilled = (await productModel.findById(product.id)) as IProduct;
 
-    productsMapped.push({
-      id: product.id,
-      name: productFulfilled?.name,
-      quantity: product.quantity,
-      totalPrice: product.totalPrice,
-    });
+    productsMapped.push({ ...product, name: productFulfilled?.name });
   }
 
   return {
@@ -74,7 +69,6 @@ const orderController = {
     for await (const [index, product] of req.body.products.entries()) {
       const productFulfilled = (await productModel.findById(product.id)) as IProduct;
 
-      req.body.products[index].name = productFulfilled.name;
       req.body.products[index].totalPrice = product.quantity * productFulfilled.price;
 
       totalPrice += product.quantity * productFulfilled.price;
@@ -115,6 +109,10 @@ const orderController = {
     orderModel
       .findById(req.body.id)
       .then((result: any) => {
+        result.customer = req.body.customer;
+        result.address = req.body.address;
+        result.phone = req.body.phone;
+        result.note = req.body.note;
         result.status = req.body.status;
         result.updatedAt = moment().valueOf();
 
@@ -172,6 +170,16 @@ const orderController = {
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();
           });
+      })
+      .catch((error) => {
+        return responseHelper(res, undefined, error.message).InternalServerError();
+      });
+  },
+  summary: (_: Request, res: Response) => {
+    orderModel
+      .summary()
+      .then((result: any) => {
+        return responseHelper(res, result[0], "Summary!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();

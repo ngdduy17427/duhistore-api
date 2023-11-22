@@ -5,5 +5,6 @@ const router: Express = express();
 
 router.get("/findAll", purchaseController.findAll);
 router.get("/findById/:id", purchaseController.findById);
+router.get("/summary", purchaseController.summary);
 
 export { router };

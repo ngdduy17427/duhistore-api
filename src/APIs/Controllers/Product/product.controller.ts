@@ -17,7 +17,7 @@ const mapProductData = (data: IProduct) => {
 };
 
 const productController = {
-  findAll: (req: Request, res: Response) => {
+  findAll: (_: Request, res: Response) => {
     productModel
       .findAll()
       .then((result: any) => {
@@ -60,7 +60,7 @@ const productController = {
     productModel
       .insert(newData)
       .then((_) => {
-        return responseHelper(res, newData, "Created!").Created();
+        return responseHelper(res, mapProductData(newData), "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -81,26 +81,7 @@ const productController = {
         productModel
           .update(result)
           .then(() => {
-            return responseHelper(res, result, "Updated!").Success();
-          })
-          .catch((error) => {
-            return responseHelper(res, undefined, error.message).InternalServerError();
-          });
-      })
-      .catch((error) => {
-        return responseHelper(res, undefined, error.message).InternalServerError();
-      });
-  },
-  delete: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
-
-    productModel
-      .findById(req.params.id)
-      .then(() => {
-        productModel
-          .delete(req.params.id)
-          .then((_) => {
-            return responseHelper(res, req.params.id, "Deleted!").Success();
+            return responseHelper(res, mapProductData(result), "Updated!").Success();
           })
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();

@@ -5,5 +5,6 @@ const router: Express = express();
 
 router.get("/findAll", orderController.findAll);
 router.get("/findById/:id", orderController.findById);
+router.get("/summary", orderController.summary);
 
 export { router };

@@ -83,6 +83,20 @@ const orderModel = {
       }
     });
   },
+  summary: () => {
+    return new Promise((resolve, reject) => {
+      try {
+        const collection = mongoDB
+          .collection(config.COLLECTION)
+          .aggregate([{ $group: { _id: null, sumTotalPrice: { $sum: "$totalPrice" }, sumCount: { $sum: 1 } } }])
+          .toArray();
+
+        return resolve(collection);
+      } catch (error) {
+        return reject(error);
+      }
+    });
+  },
 };
 
 export default orderModel;

@@ -15,12 +15,12 @@ const appInitController = {
           { value: UserRole.ADMIN, label: "Admin" },
         ],
         orderStatus: [
-          { value: OrderStatus.PACKING, label: "Packing" },
-          { value: OrderStatus.DELIVERED, label: "Delivered" },
+          { value: OrderStatus.PACKING, label: "Packing", bgColor: "#f0e68c", textColor: "black" },
+          { value: OrderStatus.DELIVERED, label: "Delivered", bgColor: "#03bb3f", textColor: "white" },
         ],
         purchaseStatus: [
-          { value: PurchaseStatus.PACKING, label: "Packing" },
-          { value: PurchaseStatus.RECEIVED, label: "Received" },
+          { value: PurchaseStatus.PACKING, label: "Packing", bgColor: "#f0e68c", textColor: "black" },
+          { value: PurchaseStatus.RECEIVED, label: "Received", bgColor: "#03bb3f", textColor: "white" },
         ],
       },
     };
