@@ -1,8 +1,19 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, ReturnDocument } from "mongodb";
 import mongoDB from "../..";
 
+export enum EActionProductQuantity {
+  INCREMENT = "increment",
+  DECREMENT = "decrement",
+}
+
+export enum EProductQuantity {
+  QUANTITY = "quantity",
+  QUANTITY_ORDER = "quantityOrder",
+  QUANTITY_PURCHASE = "quantityPurchase",
+}
+
 export interface IProduct {
-  _id?: string;
+  _id?: ObjectId;
   name: string;
   price: number;
   quantity: number;
@@ -12,15 +23,19 @@ export interface IProduct {
   updatedAt: number;
 }
 
-const config = {
+export const productConfig = {
   COLLECTION: "products",
 };
 
 const productModel = {
-  findAll: () => {
-    return new Promise((resolve, reject) => {
+  findAll: (query: any) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        let collection = mongoDB.collection(config.COLLECTION).find().sort({ updatedAt: -1 }).toArray();
+        let collection = await mongoDB
+          .collection(productConfig.COLLECTION)
+          .find({ name: { $regex: query.search ?? "" } })
+          .sort({ name: 1 })
+          .toArray();
 
         return resolve(collection);
       } catch (error) {
@@ -29,20 +44,9 @@ const productModel = {
     });
   },
   findById: (dataId: string) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
-
-        return resolve(collection);
-      } catch (error) {
-        return reject(error);
-      }
-    });
-  },
-  findByName: (dataName: string) => {
-    return new Promise((resolve, reject) => {
-      try {
-        let collection = mongoDB.collection(config.COLLECTION).find({ name: dataName }).sort({ updated: -1 }).toArray();
+        const collection = await mongoDB.collection(productConfig.COLLECTION).findOne({ _id: new ObjectId(dataId) });
 
         return resolve(collection);
       } catch (error) {
@@ -51,9 +55,10 @@ const productModel = {
     });
   },
   insert: (data: any) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).insertOne(data);
+        const inserted = await mongoDB.collection(productConfig.COLLECTION).insertOne(data);
+        const collection = await mongoDB.collection(productConfig.COLLECTION).findOne({ _id: inserted.insertedId });
 
         return resolve(collection);
       } catch (error) {
@@ -61,25 +66,18 @@ const productModel = {
       }
     });
   },
-  update: (data: any) => {
-    return new Promise((resolve, reject) => {
+  update: (dataID: number, data: any) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB
-          .collection(config.COLLECTION)
-          .updateOne({ _id: new ObjectId(data._id) }, { $set: data });
+        const updated = await mongoDB.collection(productConfig.COLLECTION).findOneAndUpdate(
+          { _id: new ObjectId(dataID) },
+          {
+            $set: data,
+          },
+          { returnDocument: ReturnDocument.AFTER }
+        );
 
-        return resolve(collection);
-      } catch (error) {
-        return reject(error);
-      }
-    });
-  },
-  delete: (dataId: string) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const collection = mongoDB.collection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
-
-        return resolve(collection);
+        return resolve(updated.value);
       } catch (error) {
         return reject(error);
       }

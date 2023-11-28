@@ -1,43 +1,30 @@
 import { Request, Response } from "express";
 import moment from "moment";
-import productModel, { IProduct } from "../../../Database/Model/Product/product.model";
+import productModel, {
+  EActionProductQuantity,
+  EProductQuantity,
+  IProduct,
+} from "../../../Database/Model/Product/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 
-const mapProductData = (data: IProduct) => {
-  return {
-    id: data._id,
-    name: data.name,
-    price: data.price,
-    quantity: data.quantity,
-    quantityOrder: data.quantityOrder,
-    quantityPurchase: data.quantityPurchase,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
-};
-
 const productController = {
-  findAll: (_: Request, res: Response) => {
+  findAll: (req: Request, res: Response) => {
     productModel
-      .findAll()
-      .then((result: any) => {
-        result = result.map((dataResult: any) => {
-          return mapProductData(dataResult);
-        });
-
-        return responseHelper(res, result, "Found all!").Success();
+      .findAll(req.query)
+      .then((resultData: any) => {
+        return responseHelper(res, resultData, "Found all!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
       });
   },
   findById: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     productModel
-      .findById(req.params.id)
-      .then((result) => {
-        return responseHelper(res, result, "Found!").Success();
+      .findById(req.params._id)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -59,8 +46,8 @@ const productController = {
 
     productModel
       .insert(newData)
-      .then((_) => {
-        return responseHelper(res, mapProductData(newData), "Created!").Created();
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -69,23 +56,18 @@ const productController = {
   update: (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
-    if (!req.body.id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
+    if (!req.body._id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
+
+    const dataToUpdate: any = {
+      name: req.body.name,
+      price: parseInt(req.body.price),
+      updatedAt: moment().valueOf(),
+    };
 
     productModel
-      .findById(req.body.id)
-      .then((result: any) => {
-        result.name = req.body.name;
-        result.price = parseInt(req.body.price);
-        result.updatedAt = moment().valueOf();
-
-        productModel
-          .update(result)
-          .then(() => {
-            return responseHelper(res, mapProductData(result), "Updated!").Success();
-          })
-          .catch((error) => {
-            return responseHelper(res, undefined, error.message).InternalServerError();
-          });
+      .update(req.body._id, dataToUpdate)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Updated!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -94,16 +76,16 @@ const productController = {
   updateProductQuantity: async (
     id: string,
     quantity: number | string,
-    action: "increase" | "decrease",
-    type: "quantity" | "quantityOrder" | "quantityPurchase"
+    action: EActionProductQuantity,
+    type: EProductQuantity
   ) => {
     await productModel.findById(id).then(async (result: any) => {
       result.updatedAt = moment().valueOf();
 
-      if (action === "increase") result[type] += parseInt(quantity as string);
-      if (action === "decrease") result[type] -= parseInt(quantity as string);
+      if (action === EActionProductQuantity.INCREMENT) result[type] += parseInt(quantity as string);
+      if (action === EActionProductQuantity.DECREMENT) result[type] -= parseInt(quantity as string);
 
-      await productModel.update(result);
+      await productModel.update(result._id, result);
     });
   },
 };

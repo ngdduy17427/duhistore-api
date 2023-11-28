@@ -5,5 +5,6 @@ const router: Express = express();
 
 router.get("/init", appInitController.init);
 router.post("/login", appInitController.login);
+router.post("/loginWithPinCode", appInitController.loginWithPinCode);
 
 export { router };

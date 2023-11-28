@@ -1,15 +1,16 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, ReturnDocument } from "mongodb";
 import mongoDB from "../..";
+import orderAggregate from "./order.aggregate";
 
 export interface IOrderProduct {
-  id: string;
+  _id: ObjectId;
   name?: string;
   quantity: number;
   totalPrice: number;
 }
 
 export interface IOrder {
-  _id?: string;
+  _id?: ObjectId;
   customer: string;
   address: string;
   phone: string;
@@ -17,19 +18,28 @@ export interface IOrder {
   products: IOrderProduct[];
   totalPrice: number;
   status: number;
+  isDelivered: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
-const config = {
+export const orderConfig = {
   COLLECTION: "orders",
 };
 
 const orderModel = {
-  findAll: () => {
-    return new Promise((resolve, reject) => {
+  findAll: (query: any) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).find().sort({ updatedAt: -1 }).toArray();
+        let collection = await mongoDB
+          .collection(orderConfig.COLLECTION)
+          .aggregate(
+            orderAggregate.findAll({
+              search: { "products.name": { $regex: query.search ?? "", $options: "i" } },
+              sort: { updatedAt: -1 },
+            })
+          )
+          .toArray();
 
         return resolve(collection);
       } catch (error) {
@@ -38,60 +48,89 @@ const orderModel = {
     });
   },
   findById: (dataId: string) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).findOne({ _id: new ObjectId(dataId) });
+        const collection = await mongoDB
+          .collection(orderConfig.COLLECTION)
+          .aggregate(
+            orderAggregate.findOne({
+              search: { _id: new ObjectId(dataId) },
+            })
+          )
+          .toArray();
 
-        return resolve(collection);
+        return resolve(collection[0]);
       } catch (error) {
         return reject(error);
       }
     });
   },
   insert: (data: any) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).insertOne(data);
+        const inserted = await mongoDB.collection(orderConfig.COLLECTION).insertOne(data);
+        const collection = await mongoDB
+          .collection(orderConfig.COLLECTION)
+          .aggregate(
+            orderAggregate.findOne({
+              search: { _id: inserted.insertedId },
+            })
+          )
+          .toArray();
 
-        return resolve(collection);
+        return resolve(collection[0]);
       } catch (error) {
         return reject(error);
       }
     });
   },
-  update: (data: any) => {
-    return new Promise((resolve, reject) => {
+  update: (dataID: number, data: any) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB
-          .collection(config.COLLECTION)
-          .updateOne({ _id: new ObjectId(data._id) }, { $set: data });
+        const updated = await mongoDB.collection(orderConfig.COLLECTION).findOneAndUpdate(
+          { _id: new ObjectId(dataID) },
+          {
+            $set: data,
+          },
+          { returnDocument: ReturnDocument.AFTER }
+        );
+        const collection = await mongoDB
+          .collection(orderConfig.COLLECTION)
+          .aggregate(
+            orderAggregate.findOne({
+              search: { _id: updated.value?._id },
+            })
+          )
+          .toArray();
 
-        return resolve(collection);
+        return resolve(collection[0]);
       } catch (error) {
         return reject(error);
       }
     });
   },
   delete: (dataId: string) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB.collection(config.COLLECTION).deleteOne({ _id: new ObjectId(dataId) });
+        const deleted = await mongoDB
+          .collection(orderConfig.COLLECTION)
+          .findOneAndDelete({ _id: new ObjectId(dataId) });
 
-        return resolve(collection);
+        return resolve(deleted.value);
       } catch (error) {
         return reject(error);
       }
     });
   },
   summary: () => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const collection = mongoDB
-          .collection(config.COLLECTION)
+        const collection = await mongoDB
+          .collection(orderConfig.COLLECTION)
           .aggregate([{ $group: { _id: null, sumTotalPrice: { $sum: "$totalPrice" }, sumCount: { $sum: 1 } } }])
           .toArray();
 
-        return resolve(collection);
+        return resolve(collection[0]);
       } catch (error) {
         return reject(error);
       }

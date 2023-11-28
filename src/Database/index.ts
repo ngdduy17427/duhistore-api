@@ -13,11 +13,16 @@ const mongoDB = {
       .connect()
       .then((mongoClientConnection) => {
         mongoClientDB = mongoClientConnection.db(process.env.MONGODB_DATABASE!);
+        mongoClientDB.command({ ping: 1 });
 
         console.log("> Duhi Store API successfully connected to MongoDB");
         console.log("> Database: %s", process.env.MONGODB_DATABASE!);
       })
-      .catch((error) => Promise.reject(error));
+      .catch((error) => {
+        mongoClient.close();
+
+        return Promise.reject(error);
+      });
   },
   collection: (collection: string) => mongoClientDB.collection(collection),
 };

@@ -31,7 +31,7 @@ const authController = {
   },
   isAdmin: (req: Request, res: Response, next: NextFunction) => {
     userModel
-      .findById(req.jwtDecoded.data.user.id)
+      .findById(req.jwtDecoded.data.user._id)
       .then((result: any) => {
         if (result.role === UserRole.ADMIN) return next();
 

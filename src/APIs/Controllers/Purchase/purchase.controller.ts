@@ -1,56 +1,30 @@
 import { Request, Response } from "express";
 import moment from "moment";
+import { ObjectId } from "mongodb";
 import { PurchaseStatus } from "../../../Constants/Enum";
-import productModel, { IProduct } from "../../../Database/Model/Product/product.model";
+import { EActionProductQuantity, EProductQuantity } from "../../../Database/Model/Product/product.model";
 import purchaseModel, { IPurchase } from "../../../Database/Model/Purchase/purchase.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 import productController from "../Product/product.controller";
 
-const mapPurchaseData = async (data: IPurchase) => {
-  const productsMapped = [];
-
-  for await (const product of data.products) {
-    const productFulfilled = (await productModel.findById(product.id)) as IProduct;
-
-    productsMapped.push({ ...product, name: productFulfilled?.name });
-  }
-
-  return {
-    id: data._id,
-    products: productsMapped,
-    totalPrice: data.totalPrice,
-    status: data.status,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
-};
-
 const purchaseController = {
-  findAll: (_: Request, res: Response) => {
+  findAll: (req: Request, res: Response) => {
     purchaseModel
-      .findAll()
-      .then(async (result: any) => {
-        const purchaseList = [];
-
-        for await (const purchase of result) {
-          const purchaseMapped = await mapPurchaseData(purchase);
-
-          purchaseList.push(purchaseMapped);
-        }
-
-        return responseHelper(res, purchaseList, "Found all!").Success();
+      .findAll(req.query)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found all!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
       });
   },
   findById: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     purchaseModel
-      .findById(req.params.id)
-      .then((result) => {
-        return responseHelper(res, result, "Found!").Success();
+      .findById(req.params._id)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -60,28 +34,36 @@ const purchaseController = {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
 
-    const totalPrice = req.body.products.reduce((total: number, product: any) => {
-      return total + parseInt(product.totalPrice);
-    }, 0);
+    let totalPrice = 0;
+
+    for (const [index, product] of req.body.products.entries()) {
+      req.body.products[index]._id = new ObjectId(product._id);
+
+      totalPrice += parseInt(product.totalPrice);
+    }
 
     const newData: IPurchase = {
       products: req.body.products,
-      status: PurchaseStatus.PACKING,
       totalPrice: totalPrice,
+      status: PurchaseStatus.PACKING,
+      isReceived: false,
       createdAt: moment().valueOf(),
       updatedAt: moment().valueOf(),
     };
 
     purchaseModel
       .insert(newData)
-      .then(async (_) => {
-        for await (const product of req.body.products) {
-          await productController.updateProductQuantity(product.id, product.quantity, "increase", "quantityPurchase");
+      .then(async (resultData: any) => {
+        for await (const product of resultData.products) {
+          await productController.updateProductQuantity(
+            product._id,
+            product.quantity,
+            EActionProductQuantity.INCREMENT,
+            EProductQuantity.QUANTITY_PURCHASE
+          );
         }
 
-        const purchaseMapped = await mapPurchaseData(newData);
-
-        return responseHelper(res, purchaseMapped, "Created!").Created();
+        return responseHelper(res, resultData, "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -90,34 +72,40 @@ const purchaseController = {
   update: (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
-    if (!req.body.id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
+    if (!req.body._id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
 
     purchaseModel
-      .findById(req.body.id)
-      .then((result: any) => {
-        result.status = req.body.status;
-        result.updatedAt = moment().valueOf();
+      .findById(req.body._id)
+      .then((resultDataFound: any) => {
+        const isReceivedTemp = resultDataFound.isDelivered;
+
+        resultDataFound.status = req.body.status;
+        resultDataFound.updatedAt = moment().valueOf();
+
+        if (req.body.status === PurchaseStatus.RECEIVED) resultDataFound.isReceived = true;
 
         purchaseModel
-          .update(result)
-          .then(async () => {
-            if (req.body.status === PurchaseStatus.RECEIVED) {
-              for await (const product of req.body.products) {
+          .update(resultDataFound._id, resultDataFound)
+          .then(async (resultData: any) => {
+            // Update Product quantity
+            if (!isReceivedTemp && resultData.status === PurchaseStatus.RECEIVED) {
+              for await (const product of resultData.products) {
                 await productController.updateProductQuantity(
-                  product.id,
+                  product._id,
                   product.quantity,
-                  "decrease",
-                  "quantityPurchase"
+                  EActionProductQuantity.DECREMENT,
+                  EProductQuantity.QUANTITY_PURCHASE
                 );
-              }
-              for await (const product of req.body.products) {
-                await productController.updateProductQuantity(product.id, product.quantity, "increase", "quantity");
+                await productController.updateProductQuantity(
+                  product._id,
+                  product.quantity,
+                  EActionProductQuantity.INCREMENT,
+                  EProductQuantity.QUANTITY
+                );
               }
             }
 
-            const purchaseMapped = await mapPurchaseData(result);
-
-            return responseHelper(res, purchaseMapped, "Updated!").Success();
+            return responseHelper(res, resultData, "Updated!").Success();
           })
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();
@@ -128,30 +116,23 @@ const purchaseController = {
       });
   },
   delete: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     purchaseModel
-      .findById(req.params.id)
-      .then((result: any) => {
-        purchaseModel
-          .delete(req.params.id)
-          .then(async () => {
-            if (result.status === PurchaseStatus.PACKING) {
-              for await (const product of result.products) {
-                await productController.updateProductQuantity(
-                  product.id,
-                  product.quantity,
-                  "decrease",
-                  "quantityPurchase"
-                );
-              }
-            }
+      .delete(req.params._id)
+      .then(async (resultData: any) => {
+        if (resultData.status === PurchaseStatus.PACKING) {
+          for await (const product of resultData.products) {
+            await productController.updateProductQuantity(
+              product._id,
+              product.quantity,
+              EActionProductQuantity.DECREMENT,
+              EProductQuantity.QUANTITY_PURCHASE
+            );
+          }
+        }
 
-            return responseHelper(res, req.params.id, "Deleted!").Success();
-          })
-          .catch((error) => {
-            return responseHelper(res, undefined, error.message).InternalServerError();
-          });
+        return responseHelper(res, resultData, "Deleted!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -160,8 +141,8 @@ const purchaseController = {
   summary: (_: Request, res: Response) => {
     purchaseModel
       .summary()
-      .then((result: any) => {
-        return responseHelper(res, result[0], "Summary!").Success();
+      .then((resultData: any) => {
+        return responseHelper(res, resultData, "Summary!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();

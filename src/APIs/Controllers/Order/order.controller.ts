@@ -1,60 +1,34 @@
 import { Request, Response } from "express";
 import moment from "moment";
+import { ObjectId } from "mongodb";
 import { OrderStatus } from "../../../Constants/Enum";
-import orderModel, { IOrder, IOrderProduct } from "../../../Database/Model/Order/order.model";
-import productModel, { IProduct } from "../../../Database/Model/Product/product.model";
+import orderModel, { IOrder } from "../../../Database/Model/Order/order.model";
+import productModel, {
+  EActionProductQuantity,
+  EProductQuantity,
+  IProduct,
+} from "../../../Database/Model/Product/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 import productController from "../Product/product.controller";
 
-const mapOrderData = async (data: IOrder) => {
-  const productsMapped: IOrderProduct[] = [];
-
-  for await (const product of data.products) {
-    const productFulfilled = (await productModel.findById(product.id)) as IProduct;
-
-    productsMapped.push({ ...product, name: productFulfilled?.name });
-  }
-
-  return {
-    id: data._id,
-    customer: data.customer,
-    address: data.address,
-    phone: data.phone,
-    note: data.note,
-    products: productsMapped,
-    totalPrice: data.totalPrice,
-    status: data.status,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
-};
-
 const orderController = {
-  findAll: (_: Request, res: Response) => {
+  findAll: (req: Request, res: Response) => {
     orderModel
-      .findAll()
-      .then(async (result: any) => {
-        const orderList = [];
-
-        for await (const order of result) {
-          const orderMapped = await mapOrderData(order);
-
-          orderList.push(orderMapped);
-        }
-
-        return responseHelper(res, orderList, "Found all!").Success();
+      .findAll(req.query)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found all!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
       });
   },
   findById: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     orderModel
-      .findById(req.params.id)
-      .then((result) => {
-        return responseHelper(res, result, "Found!").Success();
+      .findById(req.params._id)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -67,8 +41,9 @@ const orderController = {
     let totalPrice = 0;
 
     for await (const [index, product] of req.body.products.entries()) {
-      const productFulfilled = (await productModel.findById(product.id)) as IProduct;
+      const productFulfilled = (await productModel.findById(product._id)) as IProduct;
 
+      req.body.products[index]._id = new ObjectId(productFulfilled._id);
       req.body.products[index].totalPrice = product.quantity * productFulfilled.price;
 
       totalPrice += product.quantity * productFulfilled.price;
@@ -82,20 +57,24 @@ const orderController = {
       products: req.body.products,
       totalPrice: totalPrice,
       status: OrderStatus.PACKING,
+      isDelivered: false,
       createdAt: moment().valueOf(),
       updatedAt: moment().valueOf(),
     };
 
     orderModel
       .insert(newData)
-      .then(async (_) => {
-        for await (const product of req.body.products) {
-          await productController.updateProductQuantity(product.id, product.quantity, "increase", "quantityOrder");
+      .then(async (resultData: any) => {
+        for await (const product of resultData.products) {
+          await productController.updateProductQuantity(
+            product._id,
+            product.quantity,
+            EActionProductQuantity.INCREMENT,
+            EProductQuantity.QUANTITY_ORDER
+          );
         }
 
-        const orderMapped = await mapOrderData(newData);
-
-        return responseHelper(res, orderMapped, "Created!").Created();
+        return responseHelper(res, resultData, "Created!").Created();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -104,38 +83,44 @@ const orderController = {
   update: (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
-    if (!req.body.id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
+    if (!req.body._id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
 
     orderModel
-      .findById(req.body.id)
-      .then((result: any) => {
-        result.customer = req.body.customer;
-        result.address = req.body.address;
-        result.phone = req.body.phone;
-        result.note = req.body.note;
-        result.status = req.body.status;
-        result.updatedAt = moment().valueOf();
+      .findById(req.body._id)
+      .then((resultDataFound: any) => {
+        const isDeliveredTemp = resultDataFound.isDelivered;
+
+        resultDataFound.customer = req.body.customer;
+        resultDataFound.address = req.body.address;
+        resultDataFound.phone = req.body.phone;
+        resultDataFound.note = req.body.note;
+        resultDataFound.status = req.body.status;
+        resultDataFound.updatedAt = moment().valueOf();
+
+        if (req.body.status === OrderStatus.DELIVERED) resultDataFound.isDelivered = true;
 
         orderModel
-          .update(result)
-          .then(async () => {
-            if (req.body.status === OrderStatus.DELIVERED) {
-              for await (const product of req.body.products) {
+          .update(resultDataFound._id, resultDataFound)
+          .then(async (resultData: any) => {
+            // Update Product quantity
+            if (!isDeliveredTemp && resultData.status === OrderStatus.DELIVERED) {
+              for await (const product of resultData.products) {
                 await productController.updateProductQuantity(
-                  product.id,
+                  product._id,
                   product.quantity,
-                  "decrease",
-                  "quantityOrder"
+                  EActionProductQuantity.DECREMENT,
+                  EProductQuantity.QUANTITY_ORDER
                 );
-              }
-              for await (const product of req.body.products) {
-                await productController.updateProductQuantity(product.id, product.quantity, "decrease", "quantity");
+                await productController.updateProductQuantity(
+                  product._id,
+                  product.quantity,
+                  EActionProductQuantity.DECREMENT,
+                  EProductQuantity.QUANTITY
+                );
               }
             }
 
-            const orderMapped = await mapOrderData(result);
-
-            return responseHelper(res, orderMapped, "Updated!").Success();
+            return responseHelper(res, resultData, "Updated!").Success();
           })
           .catch((error) => {
             return responseHelper(res, undefined, error.message).InternalServerError();
@@ -146,30 +131,23 @@ const orderController = {
       });
   },
   delete: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     orderModel
-      .findById(req.params.id)
-      .then((result: any) => {
-        orderModel
-          .delete(req.params.id)
-          .then(async (_) => {
-            if (result.status === OrderStatus.PACKING) {
-              for await (const product of result.products) {
-                await productController.updateProductQuantity(
-                  product.id,
-                  product.quantity,
-                  "decrease",
-                  "quantityOrder"
-                );
-              }
-            }
+      .delete(req.params._id)
+      .then(async (resultData: any) => {
+        if (!resultData.isDelivered) {
+          for await (const product of resultData.products) {
+            await productController.updateProductQuantity(
+              product._id,
+              product.quantity,
+              EActionProductQuantity.DECREMENT,
+              EProductQuantity.QUANTITY_ORDER
+            );
+          }
+        }
 
-            return responseHelper(res, req.params.id, "Deleted!").Success();
-          })
-          .catch((error) => {
-            return responseHelper(res, undefined, error.message).InternalServerError();
-          });
+        return responseHelper(res, resultData, "Deleted!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -178,8 +156,8 @@ const orderController = {
   summary: (_: Request, res: Response) => {
     orderModel
       .summary()
-      .then((result: any) => {
-        return responseHelper(res, result[0], "Summary!").Success();
+      .then((resultData: any) => {
+        return responseHelper(res, resultData, "Summary!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();

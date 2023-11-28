@@ -39,6 +39,17 @@ const userModel = {
       }
     });
   },
+  findByPinCode: (dataPinCode: any) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const collection = mongoDB.collection(config.COLLECTION).findOne({ pinCode: dataPinCode });
+
+        return resolve(collection);
+      } catch (error) {
+        return reject(error);
+      }
+    });
+  },
   insert: (data: any) => {
     return new Promise((resolve, reject) => {
       try {

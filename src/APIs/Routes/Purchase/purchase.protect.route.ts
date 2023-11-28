@@ -5,6 +5,6 @@ const router: Express = express();
 
 router.post("/insert", purchaseController.insert);
 router.put("/update", purchaseController.update);
-router.delete("/delete/:id", purchaseController.delete);
+router.delete("/delete/:_id", purchaseController.delete);
 
 export { router };

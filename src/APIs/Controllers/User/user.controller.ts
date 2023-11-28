@@ -5,40 +5,24 @@ import userModel from "../../../Database/Model/User/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
 
-export const mapUserData = (userData: any) => {
-  return {
-    id: userData._id,
-    username: userData.username,
-    password: userData.password,
-    name: userData.name,
-    role: userData.role,
-    createdAt: userData.createdAt,
-    updatedAt: userData.updatedAt,
-  };
-};
-
 const userController = {
   findAll: (_: Request, res: Response) => {
     userModel
       .findAll()
-      .then((result: any) => {
-        result = result.map((dataResult: any) => {
-          return mapUserData(dataResult);
-        });
-
-        return responseHelper(res, result, "Found all!").Success();
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found all!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
       });
   },
   findById: (req: Request, res: Response) => {
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
     userModel
-      .findById(req.params.id)
-      .then((result) => {
-        return responseHelper(res, mapUserData(result), "Found!").Success();
+      .findById(req.params._id)
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -49,12 +33,8 @@ const userController = {
 
     userModel
       .findByUsername(req.params.username)
-      .then((result: any) => {
-        result = result.map((dataResult: any) => {
-          return mapUserData(dataResult);
-        });
-
-        return responseHelper(res, result, "Found!").Success();
+      .then((resultData) => {
+        return responseHelper(res, resultData, "Found!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -103,7 +83,7 @@ const userController = {
     if (!req.body.password) return responseHelper(res, undefined, "Password can not be empty!").BadRequest();
 
     userModel
-      .findById(req.body.id)
+      .findById(req.body._id)
       .then((result: any) => {
         // Change user password if client request
         if (result.password !== req.body.password) {
@@ -129,14 +109,14 @@ const userController = {
   },
   delete: (req: Request, res: Response) => {
     // Catching bad request params
-    if (!req.params.id) return responseHelper(res, undefined, "Missing id!").BadRequest();
-    if (req.params.id === req.jwtDecoded.data.user.id)
+    if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
+    if (req.params._id === req.jwtDecoded.data.user._id)
       return responseHelper(res, undefined, "You cannot delete your account!").BadRequest();
 
     userModel
-      .delete(req.params.id)
+      .delete(req.params._id)
       .then((_) => {
-        return responseHelper(res, req.params.id, "Deleted!").Success();
+        return responseHelper(res, req.params._id, "Deleted!").Success();
       })
       .catch((error) => {
         return responseHelper(res, undefined, error.message).InternalServerError();
@@ -168,7 +148,7 @@ const userController = {
               // Tạo accessToken mới cho user
               const accessToken = await jwtHelper.generateToken(
                 {
-                  id: result.id,
+                  id: result._id,
                   username: result.username,
                   role: result.role,
                 },

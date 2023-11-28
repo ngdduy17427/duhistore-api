@@ -5,6 +5,6 @@ const router: Express = express();
 
 router.post("/insert", orderController.insert);
 router.put("/update", orderController.update);
-router.delete("/delete/:id", orderController.delete);
+router.delete("/delete/:_id", orderController.delete);
 
 export { router };

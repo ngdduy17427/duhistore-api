@@ -4,7 +4,6 @@ import { OrderStatus, PurchaseStatus, UserRole } from "../../../Constants/Enum";
 import userModel from "../../../Database/Model/User/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
-import { mapUserData } from "../User/user.controller";
 
 const appInitController = {
   init: (_: Request, res: Response) => {
@@ -36,13 +35,45 @@ const appInitController = {
       .then(async (result) => {
         const [user]: any = result;
 
-        if (!user.username) return responseHelper(res, undefined, "The username is incorrect").BadRequest();
-        if (user.password !== md5(req.body.password + process.env.NODE_JWT_SECRET!))
+        if (!user?.username) return responseHelper(res, undefined, "The username is incorrect").BadRequest();
+        if (user?.password !== md5(req.body.password + process.env.NODE_JWT_SECRET!))
           return responseHelper(res, undefined, "The password is incorrect").BadRequest();
 
         const accessToken = await jwtHelper.generateToken(
           {
-            user: mapUserData(user),
+            user,
+          },
+          process.env.NODE_JWT_SECRET!,
+          process.env.NODE_JWT_LIFETIME!
+        );
+        const tokenExp = Date.now() + 365;
+
+        return responseHelper(
+          res,
+          {
+            accessToken,
+            tokenExp,
+          },
+          "Login success!"
+        ).Success();
+      })
+      .catch((error) => {
+        return responseHelper(res, undefined, error.message).BadRequest();
+      });
+  },
+  loginWithPinCode: async (req: Request, res: Response) => {
+    if (Object.keys(req.body).length === 0)
+      return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
+    if (req.body.pinCode === "") return responseHelper(res, undefined, "PIN code can not be empty!").BadRequest();
+
+    userModel
+      .findByPinCode(md5(req.body.pinCode + process.env.NODE_JWT_SECRET!))
+      .then(async (resultData: any) => {
+        if (!resultData?.username) return responseHelper(res, undefined, "PIN code is incorrect").BadRequest();
+
+        const accessToken = await jwtHelper.generateToken(
+          {
+            user: resultData,
           },
           process.env.NODE_JWT_SECRET!,
           process.env.NODE_JWT_LIFETIME!
@@ -64,7 +95,7 @@ const appInitController = {
   },
   logout: async (req: Request, res: Response) => {
     userModel
-      .findById(req.jwtDecoded.data.user.id)
+      .findById(req.jwtDecoded.data.user._id)
       .then((result) => {
         if (!result) responseHelper(res, undefined, "Logout failed!").BadRequest();
 
