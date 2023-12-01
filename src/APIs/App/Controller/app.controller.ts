@@ -4,8 +4,12 @@ import { OrderStatus, PurchaseStatus, UserRole } from "../../../Constants/Enum";
 import userModel from "../../../Database/Model/User/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
+import { isEmpty } from "../../../Helper/utils.helper";
 
-const appInitController = {
+const appController = {
+  welcome: (_: Request, res: Response) => {
+    return responseHelper(res, undefined, "Welcome to Duhi Store").Success();
+  },
   init: (_: Request, res: Response) => {
     const init = {
       options: {
@@ -29,6 +33,7 @@ const appInitController = {
   login: async (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
+    if (isEmpty(req.body.username)) return responseHelper(res, undefined, "Username can not be empty!").BadRequest();
 
     userModel
       .findByUsername(req.body.username)
@@ -64,7 +69,7 @@ const appInitController = {
   loginWithPinCode: async (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
-    if (req.body.pinCode === "") return responseHelper(res, undefined, "PIN code can not be empty!").BadRequest();
+    if (isEmpty(req.body.pinCode)) return responseHelper(res, undefined, "PIN code can not be empty!").BadRequest();
 
     userModel
       .findByPinCode(md5(req.body.pinCode + process.env.NODE_JWT_SECRET!))
@@ -107,4 +112,4 @@ const appInitController = {
   },
 };
 
-export default appInitController;
+export default appController;

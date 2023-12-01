@@ -1,31 +1,28 @@
-import { Express, Request, Response } from "express";
+import { Express } from "express";
 // Auth
-import authController from "./Controllers/Authentication/auth.controller";
+import authController from "./Auth/Controller/auth.controller";
 // App init
-import { router as appInitProtectRoute } from "./Routes/AppInit/app.init.protect.route";
-import { router as appInitRoute } from "./Routes/AppInit/app.init.route";
+import appProtectRoute from "./App/Routes/app.protect.route";
+import appRoute from "./App/Routes/app.route";
 // User
-import { router as userAdminRoute } from "./Routes/User/user.admin.route";
-import { router as userRoute } from "./Routes/User/user.route";
+import userAdminRoute from "./User/Routes/user.admin.route";
+import userRoute from "./User/Routes/user.route";
 // Order
-import { router as orderProtectRoute } from "./Routes/Order/order.protect.route";
-import { router as orderRoute } from "./Routes/Order/order.route";
+import orderProtectRoute from "./Order/Routes/order.protect.route";
+import orderRoute from "./Order/Routes/order.route";
 // Product
-import { router as productProtectRoute } from "./Routes/Product/product.protect.route";
-import { router as productRoute } from "./Routes/Product/product.route";
+import productProtectRoute from "./Product/Routes/product.protect.route";
+import productRoute from "./Product/Routes/product.route";
 // Purchase
-import { responseHelper } from "../Helper/reponse.helper";
-import { router as purchaseProtectRoute } from "./Routes/Purchase/purchase.protect.route";
-import { router as purchaseRoute } from "./Routes/Purchase/purchase.route";
+import purchaseProtectRoute from "./Purchase/Routes/purchase.protect.route";
+import purchaseRoute from "./Purchase/Routes/purchase.route";
 
 export const initAPIs = (router: Express) => {
   // Welcome
-  router.get("/", (_: Request, res: Response) => {
-    return responseHelper(res, undefined, "Welcome to Duhi Store").Success();
-  });
+  router.use("/", appRoute);
 
   // List Free APIs:
-  router.use("/app", appInitRoute);
+  router.use("/app", appRoute);
   router.use("/user", userRoute);
   router.use("/order", orderRoute);
   router.use("/product", productRoute);
@@ -33,7 +30,7 @@ export const initAPIs = (router: Express) => {
 
   // List Protect APIs:
   router.use(authController.isAuth);
-  router.use("/app", appInitProtectRoute);
+  router.use("/app", appProtectRoute);
   router.use("/order", orderProtectRoute);
   router.use("/product", productProtectRoute);
   router.use("/purchase", purchaseProtectRoute);

@@ -1,15 +1,19 @@
 import { Request, Response } from "express";
 import moment from "moment";
 import { ObjectId } from "mongodb";
-import { PurchaseStatus } from "../../../Constants/Enum";
-import { EActionProductQuantity, EProductQuantity } from "../../../Database/Model/Product/product.model";
-import purchaseModel, { IPurchase } from "../../../Database/Model/Purchase/purchase.model";
+import { OrderStatus } from "../../../Constants/Enum";
+import orderModel, { IOrder } from "../../../Database/Model/Order/order.model";
+import productModel, {
+  EActionProductQuantity,
+  EProductQuantity,
+  IProduct,
+} from "../../../Database/Model/Product/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
-import productController from "../Product/product.controller";
+import productController from "../../Product/Controller/product.controller";
 
-const purchaseController = {
+const orderController = {
   findAll: (req: Request, res: Response) => {
-    purchaseModel
+    orderModel
       .findAll(req.query)
       .then((resultData) => {
         return responseHelper(res, resultData, "Found all!").Success();
@@ -21,7 +25,7 @@ const purchaseController = {
   findById: (req: Request, res: Response) => {
     if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
-    purchaseModel
+    orderModel
       .findById(req.params._id)
       .then((resultData) => {
         return responseHelper(res, resultData, "Found!").Success();
@@ -30,28 +34,36 @@ const purchaseController = {
         return responseHelper(res, undefined, error.message).InternalServerError();
       });
   },
-  insert: (req: Request, res: Response) => {
+  insert: async (req: Request, res: Response) => {
     if (Object.keys(req.body).length === 0)
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
 
     let totalPrice = 0;
 
-    for (const [index, product] of req.body.products.entries()) {
-      req.body.products[index]._id = new ObjectId(product._id);
+    for await (const [index, product] of req.body.products.entries()) {
+      const productFulfilled = (await productModel.findById(product._id)) as IProduct;
 
-      totalPrice += parseInt(product.totalPrice);
+      req.body.products[index]._id = new ObjectId(product._id);
+      req.body.products[index].quantity = parseInt(product.quantity);
+      req.body.products[index].totalPrice = product.quantity * productFulfilled.price;
+
+      totalPrice += product.quantity * productFulfilled.price;
     }
 
-    const newData: IPurchase = {
+    const newData: IOrder = {
+      customer: req.body.customer,
+      address: req.body.address,
+      phone: req.body.phone,
+      note: req.body.note,
       products: req.body.products,
       totalPrice: totalPrice,
-      status: PurchaseStatus.PACKING,
-      isReceived: false,
+      status: OrderStatus.PACKING,
+      isDelivered: false,
       createdAt: moment().valueOf(),
       updatedAt: moment().valueOf(),
     };
 
-    purchaseModel
+    orderModel
       .insert(newData)
       .then(async (resultData: any) => {
         for await (const product of resultData.products) {
@@ -59,7 +71,7 @@ const purchaseController = {
             product._id,
             product.quantity,
             EActionProductQuantity.INCREMENT,
-            EProductQuantity.QUANTITY_PURCHASE
+            EProductQuantity.QUANTITY_ORDER
           );
         }
 
@@ -74,32 +86,36 @@ const purchaseController = {
       return responseHelper(res, undefined, "Body can not be empty!").BadRequest();
     if (!req.body._id) return responseHelper(res, undefined, "Data id can not be empty!").BadRequest();
 
-    purchaseModel
+    orderModel
       .findById(req.body._id)
       .then((resultDataFound: any) => {
-        const isReceivedTemp = resultDataFound.isDelivered;
+        const isDeliveredTemp = resultDataFound.isDelivered;
 
+        resultDataFound.customer = req.body.customer;
+        resultDataFound.address = req.body.address;
+        resultDataFound.phone = req.body.phone;
+        resultDataFound.note = req.body.note;
         resultDataFound.status = req.body.status;
         resultDataFound.updatedAt = moment().valueOf();
 
-        if (req.body.status === PurchaseStatus.RECEIVED) resultDataFound.isReceived = true;
+        if (req.body.status === OrderStatus.DELIVERED) resultDataFound.isDelivered = true;
 
-        purchaseModel
+        orderModel
           .update(resultDataFound._id, resultDataFound)
           .then(async (resultData: any) => {
             // Update Product quantity
-            if (!isReceivedTemp && resultData.status === PurchaseStatus.RECEIVED) {
+            if (!isDeliveredTemp && resultData.status === OrderStatus.DELIVERED) {
               for await (const product of resultData.products) {
                 await productController.updateProductQuantity(
                   product._id,
                   product.quantity,
                   EActionProductQuantity.DECREMENT,
-                  EProductQuantity.QUANTITY_PURCHASE
+                  EProductQuantity.QUANTITY_ORDER
                 );
                 await productController.updateProductQuantity(
                   product._id,
                   product.quantity,
-                  EActionProductQuantity.INCREMENT,
+                  EActionProductQuantity.DECREMENT,
                   EProductQuantity.QUANTITY
                 );
               }
@@ -118,16 +134,16 @@ const purchaseController = {
   delete: (req: Request, res: Response) => {
     if (!req.params._id) return responseHelper(res, undefined, "Missing id!").BadRequest();
 
-    purchaseModel
+    orderModel
       .delete(req.params._id)
       .then(async (resultData: any) => {
-        if (resultData.status === PurchaseStatus.PACKING) {
+        if (!resultData.isDelivered) {
           for await (const product of resultData.products) {
             await productController.updateProductQuantity(
               product._id,
               product.quantity,
               EActionProductQuantity.DECREMENT,
-              EProductQuantity.QUANTITY_PURCHASE
+              EProductQuantity.QUANTITY_ORDER
             );
           }
         }
@@ -139,7 +155,7 @@ const purchaseController = {
       });
   },
   summary: (_: Request, res: Response) => {
-    purchaseModel
+    orderModel
       .summary()
       .then((resultData: any) => {
         return responseHelper(res, resultData, "Summary!").Success();
@@ -150,4 +166,4 @@ const purchaseController = {
   },
 };
 
-export default purchaseController;
+export default orderController;

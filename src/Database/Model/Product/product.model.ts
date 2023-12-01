@@ -33,7 +33,7 @@ const productModel = {
       try {
         let collection = await mongoDB
           .collection(productConfig.COLLECTION)
-          .find({ name: { $regex: query.search ?? "" } })
+          .find({ name: { $regex: query.search ?? "", $options: "i" } })
           .sort({ name: 1 })
           .toArray();
 
