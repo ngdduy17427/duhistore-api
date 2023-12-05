@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import md5 from "md5";
 import moment from "moment";
-import userModel from "../../../Database/Model/User/user.model";
+import userModel from "../Model/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
 

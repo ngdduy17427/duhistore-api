@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { UserRole } from "../../../Constants/Enum";
-import userModel from "../../../Database/Model/User/user.model";
+import userModel from "../../User/Model/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
 

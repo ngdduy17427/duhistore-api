@@ -2,12 +2,8 @@ import { Request, Response } from "express";
 import moment from "moment";
 import { ObjectId } from "mongodb";
 import { OrderStatus } from "../../../Constants/Enum";
-import orderModel, { IOrder } from "../../../Database/Model/Order/order.model";
-import productModel, {
-  EActionProductQuantity,
-  EProductQuantity,
-  IProduct,
-} from "../../../Database/Model/Product/product.model";
+import orderModel, { IOrder } from "../Model/order.model";
+import productModel, { EActionProductQuantity, EProductQuantity, IProduct } from "../../Product/Model/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 import productController from "../../Product/Controller/product.controller";
 

@@ -1,5 +1,5 @@
 import { ObjectId, ReturnDocument } from "mongodb";
-import mongoDB from "../..";
+import mongoDB from "../../../Database";
 import purchaseAggregate from "./purchase.aggregate";
 
 export interface IPurchaseProduct {

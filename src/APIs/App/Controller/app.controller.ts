@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import md5 from "md5";
 import { OrderStatus, PurchaseStatus, UserRole } from "../../../Constants/Enum";
-import userModel from "../../../Database/Model/User/user.model";
+import userModel from "../../User/Model/user.model";
 import { jwtHelper } from "../../../Helper/jwt.helper";
 import { responseHelper } from "../../../Helper/reponse.helper";
 import { isEmpty } from "../../../Helper/utils.helper";

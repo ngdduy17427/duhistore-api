@@ -1,4 +1,4 @@
-import { productConfig } from "../Product/product.model";
+import { productConfig } from "../../Product/Model/product.model";
 
 const match = (query: any) => {
   return query ? { $match: query } : undefined;

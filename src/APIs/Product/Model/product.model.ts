@@ -1,5 +1,5 @@
 import { ObjectId, ReturnDocument } from "mongodb";
-import mongoDB from "../..";
+import mongoDB from "../../../Database";
 
 export enum EActionProductQuantity {
   INCREMENT = "increment",
@@ -34,7 +34,7 @@ const productModel = {
         let collection = await mongoDB
           .collection(productConfig.COLLECTION)
           .find({ name: { $regex: query.search ?? "", $options: "i" } })
-          .sort({ name: 1 })
+          .sort({ updatedAt: -1 })
           .toArray();
 
         return resolve(collection);

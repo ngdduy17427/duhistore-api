@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import mongoDB from "../..";
+import mongoDB from "../../../Database";
 
 const config = {
   COLLECTION: "users",

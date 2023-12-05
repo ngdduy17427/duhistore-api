@@ -1,10 +1,6 @@
 import { Request, Response } from "express";
 import moment from "moment";
-import productModel, {
-  EActionProductQuantity,
-  EProductQuantity,
-  IProduct,
-} from "../../../Database/Model/Product/product.model";
+import productModel, { EActionProductQuantity, EProductQuantity, IProduct } from "../Model/product.model";
 import { responseHelper } from "../../../Helper/reponse.helper";
 
 const productController = {
